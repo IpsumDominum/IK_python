@@ -6,6 +6,7 @@ from pygame.locals import *
 import numpy as np
 from joints_3d import Vec3
 from scipy.spatial.transform import Rotation as R
+from utils import mat3d_to_homogeneous
 import math
 
 
@@ -178,40 +179,31 @@ class Scene:
         glEnd()
         glPopMatrix()
 
-    def get_rotation_to_orientation(self, orientation):
-        up = Vec3(0, 0, 1)
-        q = [0, 0, 0, 0]
-        a = orientation.cross(up)
-        q[0] = a.x
-        q[1] = a.y
-        q[2] = a.z
-        q[3] = (
-            math.sqrt((up.magnitude() ** 2) * (orientation.magnitude() ** 2))
-            + up * orientation
-        )
-        r = R.from_quat(q).as_matrix()
-        r = [
-            [r[0][0], r[0][1], r[0][2], 0],
-            [r[1][0], r[1][1], r[1][2], 0],
-            [r[2][0], r[2][1], r[2][2], 0],
+    def normalize(self, mat):
+        sx = Vec3(mat[0][0], mat[1][0], mat[2][0]).magnitude()
+        sy = Vec3(mat[0][1], mat[1][1], mat[2][1]).magnitude()
+        sz = Vec3(mat[0][2], mat[1][2], mat[2][2]).magnitude()
+        return [
+            [mat[0][0] / sx, mat[0][1] / sy, mat[0][2] / sz, 0],
+            [mat[1][0] / sx, mat[1][1] / sy, mat[1][2] / sz, 0],
+            [mat[2][0] / sx, mat[2][1] / sy, mat[2][2] / sz, 0],
             [0, 0, 0, 1],
         ]
-        return r
 
-    def draw_cylinder(self, position, orientation, length, color="blue", radius=0.2):
+    def draw_joint(self, axis, position, pose, length, color="blue", radius=0.2):
         color = self.get_color(color)
 
         glColor3f(*color)
         glPushMatrix()
 
         glTranslatef(position.x, position.y, position.z)
-        """
-        rots = self.get_rotation_to_orientation(orientation)
-        glRotatef(rots.x, 1, 0, 0)
-        glRotatef(rots.y, 0, 1, 0)
-        glRotatef(rots.z, 0, 0, 1)
-        """
-        glMultMatrixf(self.get_rotation_to_orientation(orientation))
+        glMultMatrixf(mat3d_to_homogeneous(pose))
+        if axis == "x":
+            glRotatef(90, 1, 0, 0)
+        elif axis == "y":
+            glRotatef(90, 0, 1, 0)
+        elif axis == "z":
+            glRotatef(90, 0, 0, 1)
         glTranslatef(0, 0, 0)
         gluCylinder(self.p, radius, radius, length, 200, 200)
         glPopMatrix()

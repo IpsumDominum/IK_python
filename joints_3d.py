@@ -2,6 +2,7 @@ import numpy as np
 import math
 from pyquaternion import Quaternion
 from scipy.spatial.transform import Rotation as R
+from utils import mat3d_to_homogeneous, get_translation_matrix
 
 
 class Vec3:
@@ -16,6 +17,10 @@ class Vec3:
         self.x = x
         self.y = y
         self.z = z
+
+    @property
+    def elements(self):
+        return [self.x, self.y, self.z]
 
     def cross(self, b):
         return Vec3(
@@ -67,76 +72,84 @@ class Vec3:
 class Joint:
     def __init__(
         self,
-        length,
-        orientation=Vec3(0, 0, 0),
-        rot_axis=Vec3(0, 0, 0),
+        r,
+        alpha,
+        d,
+        theta,
         color="red",
         joint_color="blue",
     ):
-        self.position = Vec3(0, 0, 0)  # position is inferred from parents
-        self.parent_position = self.position
-        self.parent_orientation = orientation.norm()
-        self.base_orientation = orientation.norm()
-        self.base_rot_axis = rot_axis.norm()
-        self.parent_rot_axis = rot_axis.norm()
-        self.length = length
-        self.theta = 0
+        self.rot_angle = 0
+
+        self.r = r
+        self.alpha = alpha
+        self.d = d
+        self.theta = theta
+
+        self.frame = self.get_frame_from_dh_params(
+            self.r, self.alpha, self.d, self.theta
+        )
+        self.pose = np.eye((4))
+
         self.color = color
         self.joint_color = joint_color
+        self.parent = None
 
     @property
-    def orientation(self):
-        return self.get_cur_orientation()
+    def z_axis(self):
+        pass
 
     @property
-    def rot_axis(self):
-        return self.get_cur_rot_axis()
+    def y_axis(self):
+        pass
 
-    def project_vector_onto_self_rotational_plane(self, vec):
-        """https://www.youtube.com/watch?v=NA0lC3wucG0"""
-        u1 = (self.orientation.cross(self.rot_axis)).abs()
-        u2 = self.orientation
-        a = (vec * u1) / (u1.magnitude() ** 2)
-        b = (vec * u2) / (u2.magnitude() ** 2)
-        return a * u1 + b * u2
+    @property
+    def z_axis(self):
+        pass
 
-    def get_cur_rot_axis(self):
-        return (self.parent_orientation + self.base_rot_axis).norm()
+    @property
+    def length(self):
+        return Vec3(self.frame[0][3], self.frame[1][3], self.frame[2][3]).magnitude()
 
-    def get_cur_orientation(self):
-        quat = Quaternion(
-            axis=[self.rot_axis.x, self.rot_axis.y, self.rot_axis.z], angle=self.theta
+    @property
+    def position(self):
+        return Vec3(self.pose[0][3], self.pose[1][3], self.pose[2][3])
+
+    def set_parent(self, j):
+        self.parent = j
+
+    def get_frame_from_dh_params(self, r, alpha, d, theta):
+        c = math.cos
+        s = math.sin
+        return np.array(
+            [
+                [c(theta), -s(theta) * c(alpha), s(theta) * s(alpha), r * c(theta)],
+                [s(theta), c(theta) * c(alpha), -c(theta) * s(alpha), r * s(theta)],
+                [0, s(alpha), c(alpha), d],
+                [0, 0, 0, 1],
+            ]
         )
-        o = quat.rotate(self.base_orientation.numpy())
-        return Vec3(o[0], o[1], o[2])
 
-    def get_position_from_parent(self):
-        cur_orientation = self.get_cur_orientation()
-        self.position = Vec3(
-            self.parent_position.x + cur_orientation.x * self.length,
-            self.parent_position.y + cur_orientation.y * self.length,
-            self.parent_position.z + cur_orientation.z * self.length,
-        )
+    def forward_kinematics_from_parent(self):
+        self.pose = self.parent.pose @ self.frame
 
 
 class JointChain:
-    def __init__(self, root=Vec3(0, 0, 0), joints=[]):
-        self._root = root
+    def __init__(self, root_pos=Vec3(0, 0, 0), joints=[]):
+        self._root = Joint(0, 0, 0, 0)
+
         self._joints = joints
-        self.propagate_joints()
+        self.register_parents()
+
+    def register_parents(self):
+        base = self._root
+        for idx, j in enumerate(self._joints):
+            j.set_parent(base)
+            base = j
 
     def propagate_joints(self):
-        base_position = self._root
-        base_orientation = Vec3(0, 0, 0)
-        base_rot_axis = Vec3(0, 0, 0)
         for idx, j in enumerate(self._joints):
-            j.parent_position = base_position
-            j.parent_orientation = base_orientation
-            j.parent_rot_axis = base_rot_axis
-            j.get_position_from_parent()
-            base_position = j.position
-            base_orientation = j.orientation
-            base_rot_axis = j.rot_axis
+            j.forward_kinematics_from_parent()
 
     def get_joints(self):
         return self._joints
@@ -145,12 +158,13 @@ class JointChain:
         # First propagate joints to get current positions
         self.propagate_joints()
 
+        return 0, 0, 0, 0
         # Inverse propagate
         p_target = target
         back_vecs = []
         back_poses = []
         for joint in reversed(self._joints):
-            back_vec = p_target - joint.parent_position
+            back_vec = p_target - joint.parent.position
             back_vec = joint.project_vector_onto_self_rotational_plane(back_vec)
             back_pos = p_target - (back_vec).norm() * joint.length
             p_target = back_pos
@@ -160,7 +174,7 @@ class JointChain:
             back_poses.append(back_pos)
 
         # Forwards propagate
-        next_root = self._joints[0].parent_position
+        next_root = self._joints[0].parent.position
         forward_vecs = []
         forward_poses = [next_root]
         for i, p_target_forward in enumerate(reversed([target] + back_poses[:-1])):
