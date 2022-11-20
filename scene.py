@@ -221,6 +221,37 @@ class Scene:
         glMultMatrixf(pose.T)
         gluCylinder(self.p, radius, radius, length, 20,20)
         glPopMatrix()
+    def get_rotation_to_orientation(self, orientation):
+        up = Vec3(0, 0, 1)
+        q = [0, 0, 0, 0]
+        a = orientation.cross(up)
+        q[0] = a.x
+        q[1] = a.y
+        q[2] = a.z
+        q[3] = (
+            math.sqrt((up.magnitude() ** 2) * (orientation.magnitude() ** 2))
+            + up * orientation
+        )
+        r = R.from_quat(q).as_matrix()
+        r = [
+            [r[0][0], r[0][1], r[0][2], 0],
+            [r[1][0], r[1][1], r[1][2], 0],
+            [r[2][0], r[2][1], r[2][2], 0],
+            [0, 0, 0, 1],
+        ]
+        return r
+
+    def draw_link(self, position, orientation, length, color="blue", radius=0.2):
+        color = self.get_color(color)
+
+        glColor3f(*color)
+        glPushMatrix()
+
+        glTranslatef(position.x, position.y, position.z)
+        glMultMatrixf(self.get_rotation_to_orientation(orientation))
+        glTranslatef(0, 0, 0)
+        gluCylinder(self.p, radius, radius, length, 200, 200)
+        glPopMatrix()
 
 
         

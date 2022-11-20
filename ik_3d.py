@@ -67,6 +67,9 @@ class JointTest(Scene):
             self.draw_axis(
                 j.position, j.pose, length=2, radius=0.1
             )
+            if(j.parent):
+                orientation = j.position - j.parent.position
+                self.draw_link(j.parent.position, orientation, j.length, color="gray", radius=0.3)
 
             
             
