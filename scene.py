@@ -144,6 +144,10 @@ class Scene:
             color = (0.1, 0.1, 0.1, 1)
         elif color == "yellow":
             color = (0.5, 0.5, 0.1, 1)
+        elif color == "orange":
+            color = (0.8, 0.5, 0.1, 1)
+        elif color == "purple":
+            color = (0.9, 0.2, 0.7, 1)
         elif color == "gray":
             color = (0.3, 0.3, 0.3, 1)
         else:

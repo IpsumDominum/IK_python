@@ -14,13 +14,24 @@ class JointTest(Scene):
     def __init__(self, *args, **kwargs):
         super(JointTest, self).__init__(*args, **kwargs)
 
-        self.joint_chain = JointChain(
-            joints=[
+        robot_a = [
                 Joint(r=0, alpha=0, d=0, theta=0),
-                Joint(r=0, alpha=math.pi/2, d=5, theta=0),
-                Joint(r=5, alpha=0, d=5, theta=0),
-                Joint(r=2, alpha=0, d=2, theta=0),
-            ],
+                Joint(r=0, alpha=math.pi/2, d=2, theta=0),
+                Joint(r=0, alpha=math.pi/2, d=3, theta=0),
+                Joint(r=3, alpha=0, d=0, theta=0),
+            ]
+        robot_b = [
+            Joint(r=0, alpha=0, d=0, theta=0),
+            Joint(r=0,alpha=-math.pi/2,d=3,theta=0),
+            Joint(r=0,alpha=-math.pi/2,d=0.1,theta=0),
+            Joint(r=0,alpha=-math.pi/2,d=3,theta=0),
+            Joint(r=0,alpha=-math.pi/2,d=0.1,theta=0),
+            Joint(r=0,alpha=-math.pi/2,d=2.9,theta=0),
+            Joint(r=1.5,alpha=math.pi/2,d=0.1,theta=0),
+            Joint(r=1.5,alpha=0,d=2.9,theta=0),
+        ]
+        self.joint_chain = JointChain(
+            joints=robot_a,
         )
         self.target = Vec3(5, 10, 5)
         self.cur_j = 0
@@ -44,6 +55,27 @@ class JointTest(Scene):
             self.joint_chain.get_joints()[self.cur_j].theta += 0.1
         if keypress[pygame.K_u]:
             self.cur_j = (self.cur_j + 1) % len(self.joint_chain._joints)
+        if(keypress[pygame.K_0]):
+            self.cur_j = 0
+        if(keypress[pygame.K_1]):
+            self.cur_j = 1
+        if(keypress[pygame.K_2]):
+            self.cur_j = 2
+        if(keypress[pygame.K_3]):
+            self.cur_j = 3
+        if(keypress[pygame.K_4]):
+            self.cur_j = 4
+        if(keypress[pygame.K_5]):
+            self.cur_j = 5
+        if(keypress[pygame.K_6]):
+            self.cur_j = 6
+        if(keypress[pygame.K_7]):
+            self.cur_j = 7
+        if(keypress[pygame.K_8]):
+            self.cur_j = 8
+        if(keypress[pygame.K_9]):
+            self.cur_j = 9
+        self.cur_j = max(0,min(self.cur_j,len(self.joint_chain._joints)-1))
 
     def render(self):        
         DEBUG = False
@@ -60,9 +92,11 @@ class JointTest(Scene):
         self.draw_sphere(self.target, color=(0.2, 0.5, 0.1, 0.5))
         # Visualize joints        
         for i, j in enumerate(self.joint_chain.get_joints()):
+            if(i+1==self.cur_j):
+                self.draw_joint(j.position, j.pose,length=1,color="orange",radius=0.5)
+                continue
             if(i==0):                
                 self.draw_joint(j.position, j.pose,length=1,color="yellow",radius=0.5)
-                length = 2
             elif(i==len(self.joint_chain.get_joints())-1):
                 self.draw_sphere(j.position, color="light_blue",radius=0.6)
             else:
@@ -77,19 +111,18 @@ class JointTest(Scene):
             if(i!=len(self.joint_chain.get_joints())-1):
                 self.draw_plane(j.position,j.x_axis,j.y_axis,1, color="gray")
         
-        
         for i in range(len(back_poses)):
             pos = back_poses[i]
             vec = back_vecs[i]
             joint = self.joint_chain.get_joints()[len(self.joint_chain.get_joints())-1-i]
-            self.draw_sphere(pos)
-            self.draw_link(pos, vec,joint.length, color="gray", radius=0.3)            
+            self.draw_sphere(pos,radius=0.3,color="purple")
+            self.draw_link(joint.parent.position, vec,joint.length, color="purple", radius=0.3)
         
-        
+        return
         for i in range(len(forward_vecs)):
             pos = forward_poses[i]
             vec = forward_vecs[i]            
-            self.draw_sphere(pos,color="green")
+            self.draw_sphere(pos,color="green",radius=0.3)
             joint = self.joint_chain.get_joints()[i+1]
             self.draw_link(pos, vec,joint.length, color="green", radius=0.3)
 

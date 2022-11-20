@@ -148,6 +148,25 @@ class Joint:
         b = (vec * u2) / (u2.magnitude() ** 2)
         return a * u1 + b * u2
 
+    def get_rot_angle_to(self, vec):
+        """https://www.youtube.com/watch?v=NA0lC3wucG0"""
+        u1 = self.x_axis
+        u2 = self.y_axis
+        a = (vec * u1) / (u1.magnitude() ** 2)
+        b = (vec * u2) / (u2.magnitude() ** 2)
+        return math.atan2(b,a)
+
+    def project_vector_onto_self_transformation(self, vec):
+        """https://reader.elsevier.com/reader/sd/pii/S1000936121002910?token=3CC7C9EAB41E474AFB63C60EC4AEEDE6C27EC025F52A5D6CAEC0E21C58CE019BA8127930DF9C9E4A420EC5B3566A909B&originRegion=eu-west-1&originCreation=20221120160212"""
+        P = np.array([
+            [1,0,0,0],
+            [0,1,0,0],
+            [0,0,0,0],
+            [0,0,0,1],
+        ])
+        return Vec3.from_numpy(np.linalg.inv(self.pose) @ P @ self.pose @ np.array([vec.x,vec.y,vec.z,1]))
+
+
     def get_frame_from_dh_params(self, r, alpha, d, theta):
         c = math.cos
         s = math.sin
@@ -231,18 +250,19 @@ class JointChain:
                 break
             #Get backwards rot vec
             back_rot_vec = p_target - joint.parent.position
-            #back_rot_vec = joint.parent.project_vector_onto_self_rotational_plane(back_rot_vec)
+            back_rot_vec = joint.parent.project_vector_onto_self_rotational_plane(back_rot_vec)
             back_rot_vec = back_rot_vec.norm()
 
             #Offset based on joint.d
-            #offset_vec = joint.parent.z_axis * joint.d
+            offset_vec = joint.parent.z_axis * joint.d
 
             #Get backward pos from rot and offset
-            back_pos = p_target - back_rot_vec * joint.length
-            #back_pos -= offset_vec
+            back_pos = p_target - back_rot_vec * joint.r
+            back_pos -= offset_vec
             
             #Back vec for visualization
-            back_vec = (p_target-back_pos).norm()
+            #back_vec = (p_target-back_pos).norm()
+            back_vec = back_rot_vec
             p_target = back_pos
 
             # DEBUG
@@ -253,24 +273,21 @@ class JointChain:
         next_root = self._joints[0].position
         forward_vecs = []
         forward_poses = [next_root]
-        rots = []
         for i, p_target_forward in enumerate(reversed([target] + back_poses[:-1])):
             joint = self._joints[i+1]
             #Get forward rot vec
             forward_rot_vec = p_target_forward - next_root
             forward_rot_vec = joint.parent.project_vector_onto_self_rotational_plane(forward_rot_vec)
-            forward_rot_vec = forward_rot_vec.norm()
 
             #Offset based on joint.d
             offset_vec = joint.parent.z_axis * joint.d
 
             #Get forward pos from rot and offset
-            forward_pos = next_root + forward_rot_vec * joint.r
+            forward_pos = next_root + forward_rot_vec.norm()*joint.r
             forward_pos += offset_vec
-            
+
             #Forward vec for visualization
-            forward_vec = (forward_pos-next_root).norm()
-            
+            forward_vec = (forward_pos-next_root).norm()            
             next_root = forward_pos            
             forward_vecs.append(forward_vec)
             forward_poses.append(forward_pos)
