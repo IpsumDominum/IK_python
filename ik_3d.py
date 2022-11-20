@@ -14,10 +14,10 @@ class JointTest(Scene):
         super(JointTest, self).__init__(*args, **kwargs)
 
         self.joint_chain = JointChain(
-            root_pos=Vec3(0, 0, 0),
             joints=[
-                Joint(3, 0.5, 5, 0.5),
-                Joint(4, 0.5, 2, 0.5),
+                Joint(r=0, alpha=0, d=0, theta=0),
+                Joint(r=0, alpha=math.pi/2, d=5, theta=0),
+                Joint(r=5, alpha=0, d=0, theta=0),
             ],
         )
         self.target = Vec3(5, 10, 5)
@@ -43,29 +43,33 @@ class JointTest(Scene):
         if keypress[pygame.K_u]:
             self.cur_j = (self.cur_j + 1) % len(self.joint_chain._joints)
 
-    def render(self):
-        self.draw_sphere(self.joint_chain._root.position, color=(0.5, 0.5, 0.1, 0.5))
-        self.draw_sphere(self.target, color=(0.2, 0.5, 0.1, 0.5))
-
+    def render(self):        
         DEBUG = False
+        for i, j in enumerate(self.joint_chain.get_joints()):
+            if(i==2):
+                j.rotate(self.t*3)
         (
             back_vecs,
             back_poses,
             forward_vecs,
             forward_poses,
         ) = self.joint_chain.perform_fabrik(self.target)
-        # Visualize joints
+        self.draw_sphere(self.target, color=(0.2, 0.5, 0.1, 0.5))
+        # Visualize joints        
         for i, j in enumerate(self.joint_chain.get_joints()):
-            self.draw_sphere(j.position, color="black")
-            self.draw_joint(
-                "z", j.parent.position, j.pose, j.length, color="blue", radius=0.2
+            if(i==0):                
+                self.draw_joint(j.position, j.pose,length=1,color="yellow",radius=0.5)
+                length = 2
+            else:
+                self.draw_joint(j.position, j.pose,length=1,color="black",radius=0.5)
+        
+        for i, j in enumerate(self.joint_chain.get_joints()):
+            self.draw_axis(
+                j.position, j.pose, length=2, radius=0.1
             )
-            self.draw_joint(
-                "y", j.parent.position, j.pose, j.length, color="green", radius=0.2
-            )
-            self.draw_joint(
-                "x", j.parent.position, j.pose, j.length, color="red", radius=0.2
-            )
+
+            
+            
 
 
 j = JointTest(width=500, height=500)
