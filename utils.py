@@ -11,6 +11,12 @@ def mat3d_to_homogeneous(mat):
         ]
     )
 
+def get_rot_matrix(mat):
+        return np.array([
+            [mat[0][0], mat[0][1], mat[0][2]],
+            [mat[1][0], mat[1][1], mat[1][2]],
+            [mat[2][0], mat[2][1], mat[2][2]],
+        ])
 
 def project_vector_onto_plane(vec, u1, u2):
     """https://www.youtube.com/watch?v=NA0lC3wucG0"""

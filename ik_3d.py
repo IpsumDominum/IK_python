@@ -18,7 +18,8 @@ class JointTest(Scene):
             joints=[
                 Joint(r=0, alpha=0, d=0, theta=0),
                 Joint(r=0, alpha=math.pi/2, d=5, theta=0),
-                Joint(r=5, alpha=0, d=0, theta=0),
+                Joint(r=5, alpha=0, d=5, theta=0),
+                Joint(r=2, alpha=0, d=2, theta=0),
             ],
         )
         self.target = Vec3(5, 10, 5)
@@ -47,8 +48,9 @@ class JointTest(Scene):
     def render(self):        
         DEBUG = False
         for i, j in enumerate(self.joint_chain.get_joints()):
-            if(i==2):
-                j.rotate(self.t*3)
+            if(i==1):
+                pass
+                #j.rotate(self.t*3)
         (
             back_vecs,
             back_poses,
@@ -61,6 +63,8 @@ class JointTest(Scene):
             if(i==0):                
                 self.draw_joint(j.position, j.pose,length=1,color="yellow",radius=0.5)
                 length = 2
+            elif(i==len(self.joint_chain.get_joints())-1):
+                self.draw_sphere(j.position, color="light_blue",radius=0.6)
             else:
                 self.draw_joint(j.position, j.pose,length=1,color="black",radius=0.5)
         
@@ -69,14 +73,25 @@ class JointTest(Scene):
                 j.position, j.pose, length=2, radius=0.1
             )
             if(j.parent):
-                orientation = (j.position - j.parent.position).norm()
-
-                x_axis = Vec3.from_numpy((j.parent.pose.T @ np.array([1,0,0,1]))[:3]).norm()
-                y_axis = Vec3.from_numpy((j.parent.pose.T @ np.array([0,1,0,1]))[:3]).norm()
-                
-                self.draw_link(j.parent.position, orientation, j.length, color="gray", radius=0.3)
-                self.draw_plane(j.parent.position,x_axis,y_axis,1, color="gray")
-            
+                self.draw_link(j.parent.position, j.orientation, j.length, color="gray", radius=0.3)
+            if(i!=len(self.joint_chain.get_joints())-1):
+                self.draw_plane(j.position,j.x_axis,j.y_axis,1, color="gray")
+        
+        
+        for i in range(len(back_poses)):
+            pos = back_poses[i]
+            vec = back_vecs[i]
+            joint = self.joint_chain.get_joints()[len(self.joint_chain.get_joints())-1-i]
+            self.draw_sphere(pos)
+            self.draw_link(pos, vec,joint.length, color="gray", radius=0.3)            
+        
+        
+        for i in range(len(forward_vecs)):
+            pos = forward_poses[i]
+            vec = forward_vecs[i]            
+            self.draw_sphere(pos,color="green")
+            joint = self.joint_chain.get_joints()[i+1]
+            self.draw_link(pos, vec,joint.length, color="green", radius=0.3)
 
 
 j = JointTest(width=500, height=500)

@@ -6,7 +6,7 @@ from pygame.locals import *
 import numpy as np
 from joints_3d import Vec3
 from scipy.spatial.transform import Rotation as R
-from utils import mat3d_to_homogeneous
+from utils import mat3d_to_homogeneous,get_rot_matrix
 import math
 
 
@@ -193,12 +193,12 @@ class Scene:
         r = R.from_matrix(mat)
         return r.as_rotvec()
     
-    def draw_sphere(self, p, color="red"):
+    def draw_sphere(self, p, color="red",radius=1):
         color = self.get_color(color)
         glPushMatrix()
         glTranslatef(p.x, p.y, p.z)
         glColor4f(*color)
-        gluSphere(self.p, 1.0, 32, 16)
+        gluSphere(self.p, radius, 32, 16)
         glPopMatrix()
     def draw_axis(self,position, pose, length,radius=0.2):        
         glMatrixMode(GL_MODELVIEW)
@@ -246,12 +246,11 @@ class Scene:
 
     def draw_link(self, position, orientation, length, color="blue", radius=0.2):
         color = self.get_color(color)
-
+        rot_matrix = self.get_rotation_to_orientation(orientation)
         glColor3f(*color)
         glPushMatrix()
-
         glTranslatef(position.x, position.y, position.z)
-        glMultMatrixf(self.get_rotation_to_orientation(orientation))
+        glMultMatrixf(rot_matrix)
         glTranslatef(0, 0, 0)
         gluCylinder(self.p, radius, radius, length, 200, 200)
         glPopMatrix()
