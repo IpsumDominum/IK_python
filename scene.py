@@ -158,10 +158,12 @@ class Scene:
         up *= plane_length
         about *= plane_length
         color = self.get_color(color)
+
         p1 = up + about + position
         p2 = up - about + position
         p3 = position - up - about
         p4 = about + position - up
+
         glPushMatrix()
         glColor4f(*color)
         glBegin(GL_QUADS)
@@ -221,6 +223,7 @@ class Scene:
         glMultMatrixf(pose.T)
         gluCylinder(self.p, radius, radius, length, 20,20)
         glPopMatrix()
+        
     def get_rotation_to_orientation(self, orientation):
         up = Vec3(0, 0, 1)
         q = [0, 0, 0, 0]

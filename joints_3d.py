@@ -207,7 +207,6 @@ class JointChain:
         # First propagate joints to get current positions
         self.propagate_joints()
 
-        return 0, 0, 0, 0
         # Inverse propagate
         p_target = target
         back_vecs = []
@@ -221,7 +220,8 @@ class JointChain:
             # DEBUG
             back_vecs.append(back_vec)
             back_poses.append(back_pos)
-
+        
+        """
         # Forwards propagate
         next_root = self._joints[0].parent.position
         forward_vecs = []
@@ -239,5 +239,6 @@ class JointChain:
         for i, vec in enumerate(forward_vecs):
             joint = self._joints[i]
             # joint.set_target_orientation(vec.norm())
+        """
 
         return back_vecs, back_poses, forward_vecs, forward_poses

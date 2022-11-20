@@ -6,6 +6,7 @@ from scene import Scene
 import pygame
 from pyquaternion import Quaternion
 from scipy.spatial.transform import Rotation as R
+import numpy as np
 import math
 
 
@@ -68,10 +69,13 @@ class JointTest(Scene):
                 j.position, j.pose, length=2, radius=0.1
             )
             if(j.parent):
-                orientation = j.position - j.parent.position
-                self.draw_link(j.parent.position, orientation, j.length, color="gray", radius=0.3)
+                orientation = (j.position - j.parent.position).norm()
 
-            
+                x_axis = Vec3.from_numpy((j.parent.pose.T @ np.array([1,0,0,1]))[:3]).norm()
+                y_axis = Vec3.from_numpy((j.parent.pose.T @ np.array([0,1,0,1]))[:3]).norm()
+                
+                self.draw_link(j.parent.position, orientation, j.length, color="gray", radius=0.3)
+                self.draw_plane(j.parent.position,x_axis,y_axis,1, color="gray")
             
 
 
