@@ -4,9 +4,9 @@ from OpenGL.GLUT import *
 import pygame
 from pygame.locals import *
 import numpy as np
-from joints_3d import Vec3
+from utils import Vec3
 from scipy.spatial.transform import Rotation as R
-from utils import mat3d_to_homogeneous,get_rot_matrix
+from utils import mat3d_to_homogeneous, get_rot_matrix
 import math
 
 
@@ -156,8 +156,6 @@ class Scene:
             color = color
         return color
 
-    
-
     def draw_plane(self, position, up, about, plane_length, color="gray"):
         up *= plane_length
         about *= plane_length
@@ -182,13 +180,16 @@ class Scene:
         sx = Vec3(mat[0][0], mat[1][0], mat[2][0]).magnitude()
         sy = Vec3(mat[0][1], mat[1][1], mat[2][1]).magnitude()
         sz = Vec3(mat[0][2], mat[1][2], mat[2][2]).magnitude()
-        return np.array([
-            [mat[0][0] / sx, mat[0][1] / sy, mat[0][2] / sz, mat[0][3]],
-            [mat[1][0] / sx, mat[1][1] / sy, mat[1][2] / sz, mat[1][3]],
-            [mat[2][0] / sx, mat[2][1] / sy, mat[2][2] / sz, mat[2][3]],
-            [0, 0, 0, 1],
-        ])
-    def get_rot_vec(self,mat):
+        return np.array(
+            [
+                [mat[0][0] / sx, mat[0][1] / sy, mat[0][2] / sz, mat[0][3]],
+                [mat[1][0] / sx, mat[1][1] / sy, mat[1][2] / sz, mat[1][3]],
+                [mat[2][0] / sx, mat[2][1] / sy, mat[2][2] / sz, mat[2][3]],
+                [0, 0, 0, 1],
+            ]
+        )
+
+    def get_rot_vec(self, mat):
         mat = [
             [mat[0][0], mat[0][1], mat[0][2]],
             [mat[1][0], mat[1][1], mat[1][2]],
@@ -196,20 +197,21 @@ class Scene:
         ]
         r = R.from_matrix(mat)
         return r.as_rotvec()
-    
-    def draw_sphere(self, p, color="red",radius=1):
+
+    def draw_sphere(self, p, color="red", radius=1):
         color = self.get_color(color)
         glPushMatrix()
         glTranslatef(p.x, p.y, p.z)
         glColor4f(*color)
         gluSphere(self.p, radius, 32, 16)
         glPopMatrix()
-    def draw_axis(self,position, pose, length,radius=0.2):        
+
+    def draw_axis(self, position, pose, length, radius=0.2):
         glMatrixMode(GL_MODELVIEW)
-        for axis,color in zip(["x","y","z"],["red","green","blue"]):
-            color = self.get_color(color)        
+        for axis, color in zip(["x", "y", "z"], ["red", "green", "blue"]):
+            color = self.get_color(color)
             glColor3f(*color)
-            glPushMatrix()        
+            glPushMatrix()
             glMultMatrixf(pose.T)
             if axis == "x":
                 glRotatef(90, 0, 1, 0)
@@ -217,17 +219,18 @@ class Scene:
                 glRotatef(-90, 1, 0, 0)
             elif axis == "z":
                 pass
-            gluCylinder(self.p, radius, radius, length, 20,20)
+            gluCylinder(self.p, radius, radius, length, 20, 20)
             glPopMatrix()
-    def draw_joint(self, position, pose,length, color="black", radius=0.2):
+
+    def draw_joint(self, position, pose, length, color="black", radius=0.2):
         color = self.get_color(color)
         glColor3f(*color)
         glMatrixMode(GL_MODELVIEW)
         glPushMatrix()
         glMultMatrixf(pose.T)
-        gluCylinder(self.p, radius, radius, length, 20,20)
+        gluCylinder(self.p, radius, radius, length, 20, 20)
         glPopMatrix()
-        
+
     def get_rotation_to_orientation(self, orientation):
         up = Vec3(0, 0, 1)
         q = [0, 0, 0, 0]
@@ -258,6 +261,3 @@ class Scene:
         glTranslatef(0, 0, 0)
         gluCylinder(self.p, radius, radius, length, 200, 200)
         glPopMatrix()
-
-
-        
