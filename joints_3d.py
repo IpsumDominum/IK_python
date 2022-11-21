@@ -22,6 +22,8 @@ class Joint:
         alpha=0,
         d=0,
         theta=0,
+        lower=-math.pi*2,
+        upper=math.pi*2,
         color="red",
         joint_color="blue",
     ):
@@ -38,6 +40,9 @@ class Joint:
             self.r, self.alpha, self.d, self.theta
         )
         self.pose = self.frame
+
+        self.lower = lower
+        self.upper = upper
 
         self.color = color
         self.joint_color = joint_color
@@ -204,15 +209,19 @@ class JointChain:
                 ds_dtheta = 0
                 for k in range(3):
                     jacobian[k][j-1] = ds_dtheta
-        print(jacobian.shape)
         return jacobian
     def perform_ik(self, target):
         self.propagate_joints()        
         jacobian = self.get_jacobian()
         e = target - self._joints[-1].position
-        if(e.magnitude()>1):
-            alpha = 0.005
-            dtheta = alpha * np.linalg.pinv(jacobian) @ e.numpy()
-            for i,j in enumerate(self._joints[1:]):
-                j.theta += dtheta[i]
+        if(e.magnitude()>=1.5):
+            alpha = 0.01
+        elif(e.magnitude()<1.5):
+            alpha = 0.001
+        elif(e.magnitude()<0.5):
+            return
+            
+        dtheta = alpha * np.linalg.pinv(jacobian) @ e.numpy()
+        for i,j in enumerate(self._joints[1:]):
+            j.rot_angle = max(j.lower,min(j.upper,j.rot_angle+dtheta[i]))
         

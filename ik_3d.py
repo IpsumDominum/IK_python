@@ -16,10 +16,10 @@ class JointTest(Scene):
         super(JointTest, self).__init__(*args, **kwargs)
 
         robot_a = [
-            Joint(r=0, alpha=0, d=0, theta=0),
-            Joint(r=0, alpha=math.pi / 2, d=2, theta=0),
-            Joint(r=0, alpha=math.pi / 2, d=3, theta=0),
-            Joint(r=3, alpha=0, d=0, theta=0),
+            Joint(r=0, alpha=0, d=0, theta=0,lower=0,upper=math.pi),
+            Joint(r=0, alpha=math.pi / 2, d=2, theta=0,lower=0,upper=math.pi),
+            Joint(r=0, alpha=math.pi / 2, d=3, theta=0,lower=0,upper=math.pi),
+            Joint(r=3, alpha=0, d=0, theta=0,lower=0,upper=math.pi),
         ]
         robot_b = [
             Joint(r=0, alpha=0, d=0, theta=0),
@@ -30,6 +30,10 @@ class JointTest(Scene):
             Joint(r=0, alpha=-math.pi / 2, d=2.9, theta=0),
             Joint(r=1.5, alpha=math.pi / 2, d=0.1, theta=0),
             Joint(r=1.5, alpha=0, d=2.9, theta=0),
+        ]
+        robot_c = [
+            Joint(r=0, alpha=0, d=0, theta=0,lower=0,upper=0),
+            Joint(r=0, alpha=math.pi / 2, d=5, theta=0,lower=0,upper=0),
         ]
         self.joint_chain = JointChain(
             joints=robot_b,
@@ -80,12 +84,8 @@ class JointTest(Scene):
 
     def render(self):
         DEBUG = False
-        for i, j in enumerate(self.joint_chain.get_joints()):
-            if i == 1:
-                pass
         self.joint_chain.perform_ik(self.target)
         self.draw_sphere(self.target, color=(0.2, 0.5, 0.1, 0.5))
-
         # Visualize joints
         for i, j in enumerate(self.joint_chain.get_joints()):
             if i + 1 == self.cur_j:
@@ -101,15 +101,14 @@ class JointTest(Scene):
                 self.draw_sphere(j.position, color="light_blue", radius=0.6)
             else:
                 self.draw_joint(j.position, j.pose, length=1, color="black", radius=0.5)
-
         for i, j in enumerate(self.joint_chain.get_joints()):
-            self.draw_axis(j.position, j.pose, length=2, radius=0.1)
+            #self.draw_axis(j.position, j.pose, length=2, radius=0.1)
             if j.parent:
                 self.draw_link(
                     j.parent.position, j.orientation, j.length, color="gray", radius=0.3
                 )
-            if i != len(self.joint_chain.get_joints()) - 1:
-                self.draw_plane(j.position, j.x_axis, j.y_axis, 1, color="gray")
+            #if i != len(self.joint_chain.get_joints()) - 1:
+            #    self.draw_plane(j.position, j.x_axis, j.y_axis, 1, color="gray")
 
         
 j = JointTest(width=500, height=500)
