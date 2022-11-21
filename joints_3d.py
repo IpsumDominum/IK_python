@@ -190,91 +190,29 @@ class JointChain:
 
     def get_joints(self):
         return self._joints
-
-    def perform_fabrik(self, target):
-        # First propagate joints to get current positions
-        self.propagate_joints()
-
-        # Inverse propagate
-        p_target = target
-        back_vecs_p_prev = []
-        back_poses_p_prev = []
-        back_vecs = []
-        back_poses = []
-        rots = []
-        p_prev_position = self._joints[-1].position
-        for i in reversed(range(len(self._joints))):
-            theta = 0 #Ancestor rotation
-            joint_parent_pose = self._joints[0].pose
-            joint_parent_position = self._joints[0].position
-            for j in range(i-1): #Every previous joint from root except for joint concerned
-                joint = self._joints[j+1]
-
-                # Get backwards rot vec for parent
-                back_rot_vec = p_target - joint_parent_position
-                back_rot_vec, theta = project_vector_onto_rotational_plane(
-                    back_rot_vec, joint_parent_pose
-                )
-
-                joint_frame = joint.get_frame_from_dh_params(
-                    joint.r, joint.alpha, joint.d, joint.theta+theta
-                )
-                joint_parent_pose = joint_parent_pose @ joint_frame
-                joint_parent_position = get_translation_from_matrix(joint_parent_pose)
-            #Now we have a joint parent_position aka p_prev
-            joint = self._joints[i]
-            # Get backwards rot vec for parent
-            back_rot_vec = p_target - joint_parent_position
-            back_rot_vec, theta = project_vector_onto_rotational_plane(
-                back_rot_vec, joint_parent_pose
-            )
-            # Offset based on joint.d
-            offset_vec = get_z_axis(joint_parent_pose) * joint.d
-            # Get forward pos from rot and offset
-            back_pos = p_target - back_rot_vec.norm() * joint.r
-            back_pos -= offset_vec
-
-            back_vec = p_target - back_pos
-            back_vecs.append(back_vec)
-            back_poses.append(back_pos)
-
-            p_target = back_pos
+    def get_jacobian(self):
+        jacobian = np.zeros((3,len(self._joints)-1))
+        s_i = self._joints[-1].position
+        for j in range(1,len(self._joints)):
+            if(j<len(self._joints)):
+                v_j = self._joints[j-1].z_axis.norm()
+                ds_dtheta = v_j.cross(s_i-self._joints[j-1].position)
+                jacobian[0][j-1] = ds_dtheta.x
+                jacobian[1][j-1] = ds_dtheta.y
+                jacobian[2][j-1] = ds_dtheta.z
+            else:
+                ds_dtheta = 0
+                for k in range(3):
+                    jacobian[k][j-1] = ds_dtheta
+        print(jacobian.shape)
+        return jacobian
+    def perform_ik(self, target):
+        self.propagate_joints()        
+        jacobian = self.get_jacobian()
+        e = target - self._joints[-1].position
+        if(e.magnitude()>1):
+            alpha = 0.005
+            dtheta = alpha * np.linalg.pinv(jacobian) @ e.numpy()
+            for i,j in enumerate(self._joints[1:]):
+                j.theta += dtheta[i]
         
-        # Forwards propagate
-        theta = 0 #Ancestor rotation
-        joint_parent_pose = self._joints[0].pose
-        joint_parent_position = self._joints[0].position            
-        forward_vecs = []        
-        forward_poses = [joint_parent_position]
-        for i, p_target_forward in enumerate(reversed([target] + back_poses[:-1])):
-            break
-            joint = self._joints[i + 1]
-            # Get forward rot vec
-            forward_rot_vec = p_target_forward - joint_parent_position
-            forward_rot_vec, theta = project_vector_onto_rotational_plane(
-                forward_rot_vec, joint_parent_pose
-            )
-
-            joint_frame = joint.get_frame_from_dh_params(
-                joint.r, joint.alpha, joint.d, joint.theta+theta
-            )
-            joint_parent_pose = joint_parent_pose @ joint_frame
-            joint_parent_position = get_translation_from_matrix(joint_parent_pose)
-
-            #forward_vec = (p_target_forward - joint_parent_position).norm()
-            forward_vecs.append(forward_rot_vec)
-            forward_poses.append(joint_parent_position)
-            rots.append(theta)
-            
-        for i, vec in enumerate(rots):
-            joint = self._joints[i + 1]
-            joint.rotate(rots[i])
-
-        return (
-            back_poses_p_prev,
-            back_vecs_p_prev,
-            back_vecs,
-            back_poses,
-            forward_vecs,
-            forward_poses,
-        )
