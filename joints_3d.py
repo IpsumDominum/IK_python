@@ -22,8 +22,8 @@ class Joint:
         alpha=0,
         d=0,
         theta=0,
-        lower=-math.pi*2,
-        upper=math.pi*2,
+        lower=-math.pi * 2,
+        upper=math.pi * 2,
         color="red",
         joint_color="blue",
     ):
@@ -46,6 +46,7 @@ class Joint:
 
         self.color = color
         self.joint_color = joint_color
+        self.rot_angle = min(self.upper, max(self.lower, self.rot_angle))
 
     @property
     def z_axis(self):
@@ -69,7 +70,7 @@ class Joint:
         return v
 
     def rotate(self, angle):
-        self.rot_angle = angle
+        self.rot_angle = min(self.upper, max(self.lower, angle))
 
     def set_parent(self, j):
         self.parent = j
@@ -195,33 +196,70 @@ class JointChain:
 
     def get_joints(self):
         return self._joints
-    def get_jacobian(self):
-        jacobian = np.zeros((3,len(self._joints)-1))
-        s_i = self._joints[-1].position
-        for j in range(1,len(self._joints)):
-            if(j<len(self._joints)):
-                v_j = self._joints[j-1].z_axis.norm()
-                ds_dtheta = v_j.cross(s_i-self._joints[j-1].position)
-                jacobian[0][j-1] = ds_dtheta.x
-                jacobian[1][j-1] = ds_dtheta.y
-                jacobian[2][j-1] = ds_dtheta.z
+
+    def get_jacobian(self, target=None):
+        # http://graphics.cs.cmu.edu/nsp/course/15-464/Spring11/handouts/iksurvey.pdf?fbclid=IwAR0KLAgGkpl3S9o4gEnWrMch9OrDAPZNgHrum5vr4OeQXy8kFHl7bhJho-c
+        jacobian = np.zeros((3, len(self._joints) - 1))
+        if target:
+            # Use alternative jacobian
+            s_i = target
+        else:
+            s_i = self._joints[-1].position
+        for j in range(1, len(self._joints)):
+            if j < len(self._joints):
+                v_j = self._joints[j - 1].z_axis.norm()
+                ds_dtheta = v_j.cross(s_i - self._joints[j - 1].position)
+                jacobian[0][j - 1] = ds_dtheta.x
+                jacobian[1][j - 1] = ds_dtheta.y
+                jacobian[2][j - 1] = ds_dtheta.z
             else:
                 ds_dtheta = 0
                 for k in range(3):
-                    jacobian[k][j-1] = ds_dtheta
+                    jacobian[k][j - 1] = ds_dtheta
         return jacobian
-    def perform_ik(self, target):
-        self.propagate_joints()        
-        jacobian = self.get_jacobian()
+
+    def ik_jacobian_transpose(self, target):
+        def clamp_error(e, max_d):
+            if e.magnitude() <= max_d:
+                return e
+            else:
+                return e.norm() * max_d
+
+        def get_alpha(e, jacobian):
+            update = jacobian @ jacobian.T @ e.numpy()
+            return np.dot(e.numpy(), update) / np.dot(update, update)
+
+        self.propagate_joints()
+        jacobian = self.get_jacobian(target)
         e = target - self._joints[-1].position
-        if(e.magnitude()>=1.5):
-            alpha = 0.01
-        elif(e.magnitude()<1.5):
-            alpha = 0.001
-        elif(e.magnitude()<0.5):
-            return
-            
-        dtheta = alpha * np.linalg.pinv(jacobian) @ e.numpy()
-        for i,j in enumerate(self._joints[1:]):
-            j.rot_angle = max(j.lower,min(j.upper,j.rot_angle+dtheta[i]))
-        
+        e = clamp_error(e, 5)
+        alpha = get_alpha(e, jacobian)
+
+        dtheta = alpha * jacobian.T @ e.numpy()
+        max_joint_length = 10
+        for i, j in enumerate(self._joints[1:]):
+            j.rotate(j.rot_angle + dtheta[i])
+    def ik_pseudoinverse(self, target):
+        def clamp_error(e, max_d):
+            if e.magnitude() <= max_d:
+                return e
+            else:
+                return e.norm() * max_d
+
+        def get_alpha(e, jacobian):
+            update = jacobian @ jacobian.T @ e.numpy()
+            return np.dot(e.numpy(), update) / np.dot(update, update)
+
+        self.propagate_joints()
+        jacobian = self.get_jacobian(target)
+        e = target - self._joints[-1].position
+        e = clamp_error(e, 5)
+
+        j_inv = np.linalg.pinv(jacobian)
+        dtheta = j_inv @ e.numpy() + (np.eye(3) - j_inv @ jacobian) @ np.zeros(3)
+        for i, j in enumerate(self._joints[1:]):
+            j.rot_angle = max(j.lower, min(j.upper, j.rot_angle + dtheta[i]))
+
+    def perform_ik(self, target):
+        self.ik_jacobian_transpose(target)
+        # self.ik_pseudoinverse(target)

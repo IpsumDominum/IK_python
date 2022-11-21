@@ -16,10 +16,10 @@ class JointTest(Scene):
         super(JointTest, self).__init__(*args, **kwargs)
 
         robot_a = [
-            Joint(r=0, alpha=0, d=0, theta=0,lower=0,upper=math.pi),
-            Joint(r=0, alpha=math.pi / 2, d=2, theta=0,lower=0,upper=math.pi),
-            Joint(r=0, alpha=math.pi / 2, d=3, theta=0,lower=0,upper=math.pi),
-            Joint(r=3, alpha=0, d=0, theta=0,lower=0,upper=math.pi),
+            Joint(r=0, alpha=0, d=0, theta=0, lower=0, upper=math.pi),
+            Joint(r=0, alpha=math.pi / 2, d=2, theta=0, lower=0, upper=math.pi),
+            Joint(r=0, alpha=math.pi / 2, d=3, theta=0, lower=0, upper=math.pi),
+            Joint(r=3, alpha=0, d=0, theta=0, lower=0, upper=math.pi),
         ]
         robot_b = [
             Joint(r=0, alpha=0, d=0, theta=0),
@@ -32,11 +32,75 @@ class JointTest(Scene):
             Joint(r=1.5, alpha=0, d=2.9, theta=0),
         ]
         robot_c = [
-            Joint(r=0, alpha=0, d=0, theta=0,lower=0,upper=0),
-            Joint(r=0, alpha=math.pi / 2, d=5, theta=0,lower=0,upper=0),
+            Joint(r=0, alpha=0, d=0, theta=0, lower=0, upper=0),
+            Joint(r=0, alpha=math.pi / 2, d=5, theta=0, lower=0, upper=0),
+        ]
+        robot_d = [
+            Joint(r=0, alpha=0, d=0, theta=0, lower=0, upper=0),
+            Joint(
+                r=0,
+                alpha=math.pi / 2,
+                d=1.85 * 3,
+                theta=0,
+                lower=-0.3,
+                upper=0.3,
+            ),
+            Joint(
+                r=0.582 * 3,
+                alpha=math.pi / 2,
+                d=0,
+                theta=0,
+                lower=-0.25,
+                upper=0,
+            ),
+            Joint(
+                # Intermediate Joint (Not used)
+                r=1,
+                alpha=0,
+                d=1.72 * 3,
+                theta=0,
+                lower=0,
+                upper=0,
+            ),
+            Joint(
+                # Clavicle Yaw
+                r=0,
+                alpha=math.pi / 2,
+                d=0.5,
+                theta=math.pi,
+                lower=-0.8,
+                upper=0.8,
+            ),
+            Joint(
+                # Clavicle roll
+                r=0,
+                alpha=math.pi / 2,
+                d=0.5,
+                theta=0,
+                lower=-math.pi,
+                upper=-math.pi + 1.2,
+            ),
+            Joint(
+                # Humerous Yaw
+                r=4,
+                alpha=0,
+                d=0,
+                theta=0,
+                lower=0,
+                upper=math.pi / 2,
+            ),
+            Joint(
+                # Elbow Yaw
+                r=2,
+                alpha=math.pi / 2,
+                d=0,
+                theta=0,
+                lower=0,
+                upper=math.pi / 2,
+            ),
         ]
         self.joint_chain = JointChain(
-            joints=robot_b,
+            joints=robot_d,
         )
         self.target = Vec3(5, 10, 5)
         self.cur_j = 0
@@ -55,9 +119,11 @@ class JointTest(Scene):
         if keypress[pygame.K_m]:
             self.target.z -= 0.1
         if keypress[pygame.K_j]:
-            self.joint_chain.get_joints()[self.cur_j].theta -= 0.1
+            j = self.joint_chain.get_joints()[self.cur_j]
+            j.rotate(j.rot_angle - 0.1)
         if keypress[pygame.K_k]:
-            self.joint_chain.get_joints()[self.cur_j].theta += 0.1
+            j = self.joint_chain.get_joints()[self.cur_j]
+            j.rotate(j.rot_angle + 0.1)
         if keypress[pygame.K_u]:
             self.cur_j = (self.cur_j + 1) % len(self.joint_chain._joints)
         if keypress[pygame.K_0]:
@@ -81,13 +147,18 @@ class JointTest(Scene):
         if keypress[pygame.K_9]:
             self.cur_j = 9
         self.cur_j = max(0, min(self.cur_j, len(self.joint_chain._joints) - 1))
+        print(self.joint_chain._joints[self.cur_j].rot_angle)
 
     def render(self):
         DEBUG = False
         self.joint_chain.perform_ik(self.target)
+        self.joint_chain.propagate_joints()
         self.draw_sphere(self.target, color=(0.2, 0.5, 0.1, 0.5))
         # Visualize joints
         for i, j in enumerate(self.joint_chain.get_joints()):
+            # if i == len(self.joint_chain.get_joints()) - 1:
+            #   j.alpha = self.t * 2 % math.pi * 2
+            #    print(j.alpha)
             if i + 1 == self.cur_j:
                 self.draw_joint(
                     j.position, j.pose, length=1, color="orange", radius=0.5
@@ -98,19 +169,22 @@ class JointTest(Scene):
                     j.position, j.pose, length=1, color="yellow", radius=0.5
                 )
             elif i == len(self.joint_chain.get_joints()) - 1:
-                self.draw_sphere(j.position, color="light_blue", radius=0.6)
+                # self.draw_sphere(j.position, color="light_blue", radius=0.6)
+                self.draw_joint(
+                    j.position, j.pose, length=1, color="light_blue", radius=0.6
+                )
             else:
                 self.draw_joint(j.position, j.pose, length=1, color="black", radius=0.5)
         for i, j in enumerate(self.joint_chain.get_joints()):
-            #self.draw_axis(j.position, j.pose, length=2, radius=0.1)
+            self.draw_axis(j.position, j.pose, length=2, radius=0.1)
             if j.parent:
                 self.draw_link(
                     j.parent.position, j.orientation, j.length, color="gray", radius=0.3
                 )
-            #if i != len(self.joint_chain.get_joints()) - 1:
+            # if i != len(self.joint_chain.get_joints()) - 1:
             #    self.draw_plane(j.position, j.x_axis, j.y_axis, 1, color="gray")
 
-        
+
 j = JointTest(width=500, height=500)
 
 
