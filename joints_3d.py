@@ -254,9 +254,9 @@ class JointChain:
         self.propagate_joints()
         jacobian = self.get_jacobian(target)
         e = target - self._joints[-1].position
-        e = clamp_error(e, 5)
+        e = clamp_error(e, 2)
 
-        Lambda = 0.01
+        Lambda = 2
         a = jacobian@jacobian.T + Lambda**2*np.eye(3)
         dtheta = jacobian.T @ np.linalg.inv(a) @ e.numpy()
         for i, j in enumerate(self._joints[1:]):
@@ -285,13 +285,11 @@ class JointChain:
         e = target - self._joints[-1].position
         e = clamp_error(e, 5)
 
-        j_inv = np.linalg.pinv(jacobian)
-        dtheta = j_inv @ e.numpy() + (np.eye(3) - j_inv @ jacobian) @ np.zeros(3)
+        dtheta = jacobian.T @ np.linalg.pinv(jacobian @jacobian.T) @ e.numpy()
         for i, j in enumerate(self._joints[1:]):
             j.rot_angle = max(j.lower, min(j.upper, j.rot_angle + dtheta[i]))
 
     def perform_ik(self, target):
         #self.ik_jacobian_transpose(target)
-        # self.ik_pseudoinverse(target)
-        for i in range(10):
-            self.ik_damped_least_squares(target)
+        #self.ik_pseudoinverse(target)
+        self.ik_damped_least_squares(target)
