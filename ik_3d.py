@@ -50,7 +50,7 @@ class JointTest(Scene):
                 alpha=math.pi / 2,
                 d=0,
                 theta=0,
-                lower=-0.25,
+                lower=-0.1,
                 upper=0,
             ),
             Joint(
@@ -68,7 +68,7 @@ class JointTest(Scene):
                 alpha=math.pi / 2,
                 d=0.5,
                 theta=math.pi,
-                lower=-0.8,
+                lower=-0.6,
                 upper=0.8,
             ),
             Joint(
@@ -104,6 +104,7 @@ class JointTest(Scene):
         )
         self.target = Vec3(5, 10, 5)
         self.cur_j = 0
+        self.doing_ik = False
 
     def handle_keypress(self, keypress):
         if keypress[pygame.K_UP]:
@@ -124,8 +125,11 @@ class JointTest(Scene):
         if keypress[pygame.K_k]:
             j = self.joint_chain.get_joints()[self.cur_j]
             j.rotate(j.rot_angle + 0.1)
+        if keypress[pygame.K_i]:
+            self.doing_ik = True
         if keypress[pygame.K_u]:
-            self.cur_j = (self.cur_j + 1) % len(self.joint_chain._joints)
+            self.doing_ik = False
+        
         if keypress[pygame.K_0]:
             self.cur_j = 0
         if keypress[pygame.K_1]:
@@ -151,8 +155,10 @@ class JointTest(Scene):
 
     def render(self):
         DEBUG = False
-        self.joint_chain.perform_ik(self.target)
-        self.joint_chain.propagate_joints()
+        if(self.doing_ik):
+            self.joint_chain.perform_ik(self.target)
+        else:
+            self.joint_chain.propagate_joints()
         self.draw_sphere(self.target, color=(0.2, 0.5, 0.1, 0.5))
         # Visualize joints
         for i, j in enumerate(self.joint_chain.get_joints()):

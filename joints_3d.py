@@ -239,6 +239,36 @@ class JointChain:
         max_joint_length = 10
         for i, j in enumerate(self._joints[1:]):
             j.rotate(j.rot_angle + dtheta[i])
+
+    def ik_damped_least_squares(self,target):
+        def clamp_error(e, max_d):
+            if e.magnitude() <= max_d:
+                return e
+            else:
+                return e.norm() * max_d
+
+        def get_alpha(e, jacobian):
+            update = jacobian @ jacobian.T @ e.numpy()
+            return np.dot(e.numpy(), update) / np.dot(update, update)
+
+        self.propagate_joints()
+        jacobian = self.get_jacobian(target)
+        e = target - self._joints[-1].position
+        e = clamp_error(e, 5)
+
+        Lambda = 0.01
+        a = jacobian@jacobian.T + Lambda**2*np.eye(3)
+        dtheta = jacobian.T @ np.linalg.inv(a) @ e.numpy()
+        for i, j in enumerate(self._joints[1:]):
+            if(i==2):
+                dtheta[i] = min(0.01,dtheta[i]*0.1)
+            elif(i>(len(self._joints[1:])-3)):
+                dtheta[i] = min(1,dtheta[i])
+            else:
+                dtheta[i] = min(0.1,dtheta[i])
+            j.rot_angle = max(j.lower, min(j.upper, j.rot_angle+dtheta[i]))
+
+
     def ik_pseudoinverse(self, target):
         def clamp_error(e, max_d):
             if e.magnitude() <= max_d:
@@ -261,5 +291,7 @@ class JointChain:
             j.rot_angle = max(j.lower, min(j.upper, j.rot_angle + dtheta[i]))
 
     def perform_ik(self, target):
-        self.ik_jacobian_transpose(target)
+        #self.ik_jacobian_transpose(target)
         # self.ik_pseudoinverse(target)
+        for i in range(10):
+            self.ik_damped_least_squares(target)
