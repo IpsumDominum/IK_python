@@ -4,9 +4,9 @@ from OpenGL.GLUT import *
 import pygame
 from pygame.locals import *
 import numpy as np
-from utils import Vec3
+from .utils import Vec3
 from scipy.spatial.transform import Rotation as R
-from utils import mat3d_to_homogeneous, get_rot_matrix
+from .utils import mat3d_to_homogeneous, get_rot_matrix
 import math
 
 

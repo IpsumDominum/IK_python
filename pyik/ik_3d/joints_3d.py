@@ -2,7 +2,7 @@ import numpy as np
 import math
 from pyquaternion import Quaternion
 from scipy.spatial.transform import Rotation as R
-from utils import (
+from .utils import (
     get_z_axis,
     get_x_axis,
     get_y_axis,
@@ -180,17 +180,33 @@ class Joint:
 
 
 class JointChain:
+
+    def from_dh(dh_file_path):
+        with open(dh_file_path,"r") as file:
+            contents = file.readlines()
+        joints = []
+        for line in contents:
+            joint = Joint(*list(map(lambda x:float(x),line.split(","))))
+            joints.append(joint)
+        return JointChain(joints=joints)
+
     def __init__(self, joints=[]):
         self._joints = joints
         self.register_parents()
 
+    def export_to_dh_params(self,output_path):
+        to_write = ""
+        for j in self._joints:
+            to_write += f"{j.r},{j.alpha},{j.d},{j.theta},{j.lower},{j.upper}\n"
+        with open(output_path,"w") as file:
+            file.write(to_write.strip("\n"))
     def register_parents(self):
         base = None
         for idx, j in enumerate(self._joints):
             j.set_parent(base)
             base = j
 
-    def propagate_joints(self):
+    def forward_kinematics(self):
         for idx, j in enumerate(self._joints):
             j.forward_kinematics_from_parent()
 
@@ -229,7 +245,7 @@ class JointChain:
             update = jacobian @ jacobian.T @ e.numpy()
             return np.dot(e.numpy(), update) / np.dot(update, update)
 
-        self.propagate_joints()
+        self.forward_kinematics()
         jacobian = self.get_jacobian(target)
         e = target - self._joints[-1].position
         e = clamp_error(e, 5)
@@ -237,8 +253,12 @@ class JointChain:
 
         dtheta = alpha * jacobian.T @ e.numpy()
         max_joint_length = 10
+
+        joint_angles = []
         for i, j in enumerate(self._joints[1:]):
-            j.rotate(j.rot_angle + dtheta[i])
+            j.rot_angle = max(j.lower, min(j.upper, j.rot_angle+dtheta[i]))
+            joint_angles.append(j.rot_angle)
+        return joint_angles
 
     def ik_damped_least_squares(self,target):
         def clamp_error(e, max_d):
@@ -251,7 +271,7 @@ class JointChain:
             update = jacobian @ jacobian.T @ e.numpy()
             return np.dot(e.numpy(), update) / np.dot(update, update)
 
-        self.propagate_joints()
+        self.forward_kinematics()
         jacobian = self.get_jacobian(target)
         e = target - self._joints[-1].position
         e = clamp_error(e, 2)
@@ -259,6 +279,8 @@ class JointChain:
         Lambda = 2
         a = jacobian@jacobian.T + Lambda**2*np.eye(3)
         dtheta = jacobian.T @ np.linalg.inv(a) @ e.numpy()
+
+        joint_angles = []
         for i, j in enumerate(self._joints[1:]):
             if(i==2):
                 dtheta[i] = min(0.01,dtheta[i]*0.1)
@@ -267,6 +289,8 @@ class JointChain:
             else:
                 dtheta[i] = min(0.1,dtheta[i])
             j.rot_angle = max(j.lower, min(j.upper, j.rot_angle+dtheta[i]))
+            joint_angles.append(j.rot_angle)
+        return joint_angles
 
 
     def ik_pseudoinverse(self, target):
@@ -280,16 +304,16 @@ class JointChain:
             update = jacobian @ jacobian.T @ e.numpy()
             return np.dot(e.numpy(), update) / np.dot(update, update)
 
-        self.propagate_joints()
+        self.forward_kinematics()
         jacobian = self.get_jacobian(target)
         e = target - self._joints[-1].position
         e = clamp_error(e, 5)
 
         dtheta = jacobian.T @ np.linalg.pinv(jacobian @jacobian.T) @ e.numpy()
+        joint_angles = []
         for i, j in enumerate(self._joints[1:]):
             j.rot_angle = max(j.lower, min(j.upper, j.rot_angle + dtheta[i]))
+            joint_angles.append(j.rot_angle)
+        return joint_angles
 
-    def perform_ik(self, target):
-        #self.ik_jacobian_transpose(target)
-        #self.ik_pseudoinverse(target)
-        self.ik_damped_least_squares(target)
+
