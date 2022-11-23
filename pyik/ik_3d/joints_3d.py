@@ -1,7 +1,5 @@
 import numpy as np
 import math
-from pyquaternion import Quaternion
-from scipy.spatial.transform import Rotation as R
 from .utils import (
     get_z_axis,
     get_x_axis,
@@ -180,13 +178,12 @@ class Joint:
 
 
 class JointChain:
-
     def from_dh(dh_file_path):
-        with open(dh_file_path,"r") as file:
+        with open(dh_file_path, "r") as file:
             contents = file.readlines()
         joints = []
         for line in contents:
-            joint = Joint(*list(map(lambda x:float(x),line.split(","))))
+            joint = Joint(*list(map(lambda x: float(x), line.split(","))))
             joints.append(joint)
         return JointChain(joints=joints)
 
@@ -194,12 +191,13 @@ class JointChain:
         self._joints = joints
         self.register_parents()
 
-    def export_to_dh_params(self,output_path):
+    def export_to_dh_params(self, output_path):
         to_write = ""
         for j in self._joints:
             to_write += f"{j.r},{j.alpha},{j.d},{j.theta},{j.lower},{j.upper}\n"
-        with open(output_path,"w") as file:
+        with open(output_path, "w") as file:
             file.write(to_write.strip("\n"))
+
     def register_parents(self):
         base = None
         for idx, j in enumerate(self._joints):
@@ -256,11 +254,11 @@ class JointChain:
 
         joint_angles = []
         for i, j in enumerate(self._joints[1:]):
-            j.rot_angle = max(j.lower, min(j.upper, j.rot_angle+dtheta[i]))
+            j.rot_angle = max(j.lower, min(j.upper, j.rot_angle + dtheta[i]))
             joint_angles.append(j.rot_angle)
         return joint_angles
 
-    def ik_damped_least_squares(self,target):
+    def ik_damped_least_squares(self, target):
         def clamp_error(e, max_d):
             if e.magnitude() <= max_d:
                 return e
@@ -277,21 +275,20 @@ class JointChain:
         e = clamp_error(e, 2)
 
         Lambda = 2
-        a = jacobian@jacobian.T + Lambda**2*np.eye(3)
+        a = jacobian @ jacobian.T + Lambda**2 * np.eye(3)
         dtheta = jacobian.T @ np.linalg.inv(a) @ e.numpy()
 
         joint_angles = []
         for i, j in enumerate(self._joints[1:]):
-            if(i==2):
-                dtheta[i] = min(0.01,dtheta[i]*0.1)
-            elif(i>(len(self._joints[1:])-3)):
-                dtheta[i] = min(1,dtheta[i])
+            if i == 2:
+                dtheta[i] = min(0.01, dtheta[i] * 0.1)
+            elif i > (len(self._joints[1:]) - 3):
+                dtheta[i] = min(1, dtheta[i])
             else:
-                dtheta[i] = min(0.1,dtheta[i])
-            j.rot_angle = max(j.lower, min(j.upper, j.rot_angle+dtheta[i]))
+                dtheta[i] = min(0.1, dtheta[i])
+            j.rot_angle = max(j.lower, min(j.upper, j.rot_angle + dtheta[i]))
             joint_angles.append(j.rot_angle)
         return joint_angles
-
 
     def ik_pseudoinverse(self, target):
         def clamp_error(e, max_d):
@@ -309,11 +306,14 @@ class JointChain:
         e = target - self._joints[-1].position
         e = clamp_error(e, 5)
 
-        dtheta = jacobian.T @ np.linalg.pinv(jacobian @jacobian.T) @ e.numpy()
+        dtheta = jacobian.T @ np.linalg.pinv(jacobian @ jacobian.T) @ e.numpy()
         joint_angles = []
         for i, j in enumerate(self._joints[1:]):
             j.rot_angle = max(j.lower, min(j.upper, j.rot_angle + dtheta[i]))
             joint_angles.append(j.rot_angle)
         return joint_angles
 
+    def ik_fabrik(self, target):
+        self.forward_kinematics()
 
+        # Forward pass (Find first N joints which are not concurrent. (usually 2))

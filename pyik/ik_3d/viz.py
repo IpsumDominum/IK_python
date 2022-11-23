@@ -10,11 +10,12 @@ from scipy.spatial.transform import Rotation as R
 import numpy as np
 import math
 
+
 class Visualization(Scene):
-    def __init__(self,joint_chain,width,height,show_axis=False):
-        super(Visualization, self).__init__(width,height)
+    def __init__(self, joint_chain, width, height, show_axis=False):
+        super(Visualization, self).__init__(width, height)
         self.joint_chain = joint_chain
-        self.target = Vec3(0,0,0)
+        self.target = Vec3(0, 0, 0)
         self.cur_j = 0
         self.doing_ik = True
         self.show_axis = show_axis
@@ -42,7 +43,7 @@ class Visualization(Scene):
             self.doing_ik = True
         if keypress[pygame.K_u]:
             self.doing_ik = False
-        
+
         if keypress[pygame.K_0]:
             self.cur_j = 0
         if keypress[pygame.K_1]:
@@ -66,8 +67,8 @@ class Visualization(Scene):
         self.cur_j = max(0, min(self.cur_j, len(self.joint_chain._joints) - 1))
 
     def render(self):
-        if(self.doing_ik):
-            self.joint_chain.ik_damped_least_squares(self.target)
+        if self.doing_ik:
+            self.joint_chain.ik_fabrik(self.target)
         else:
             self.joint_chain.forward_kinematics()
         self.draw_sphere(self.target, color=(0.2, 0.5, 0.1, 0.5))
@@ -86,11 +87,9 @@ class Visualization(Scene):
             else:
                 self.draw_joint(j.position, j.pose, length=1, color="black", radius=0.5)
 
-            if(self.show_axis):
+            if self.show_axis:
                 self.draw_axis(j.position, j.pose, length=2, radius=0.1)
             if j.parent:
                 self.draw_link(
                     j.parent.position, j.orientation, j.length, color="gray", radius=0.3
                 )
-
-
